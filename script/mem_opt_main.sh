@@ -2,7 +2,7 @@
 # QTI memory optimization
 # https://github.com/yc9559/qti-mem-opt
 # Author: Matt Yang
-# Version: v6.1 (20200229)
+# Version: v6.2 (20200309)
 
 # Runonce after boot, to speed up the transition of power modes in powercfg
 
@@ -86,7 +86,7 @@ save_panel()
     write_panel "QTI memory optimization"
     write_panel "https://github.com/yc9559/qti-mem-opt"
     write_panel "Author: Matt Yang"
-    write_panel "Version: v6.1 (20200229)"
+    write_panel "Version: v6.2 (20200309)"
     write_panel "Last performed: $(date '+%Y-%m-%d %H:%M:%S')"
     write_panel ""
     write_panel "[ZRAM status]"
@@ -135,26 +135,29 @@ lock_val "0" /sys/module/process_reclaim/parameters/enable_process_reclaim
 # Xiaomi K20pro need more time
 sleep 20
 
-config_zram
-config_reclaim_param
+# Check whether Android LMK exist, if not exist then means user is using Simple LMK
+# Stop Applying Android LMK, ZRAM, VM Tweaks if it is Simple LMK
+if [ -d "/sys/module/lowmemorykiller" ]; then
+    config_zram
+    config_reclaim_param
 
-# older adaptive_lmk may have false positive vmpressure issue
-lock_val "0" $LMK/enable_adaptive_lmk
-# almk will take no action if CACHED_APP_MAX_ADJ == 906
-# lock_val "960" $LMK/adj_max_shift
-# just unify param
-lock_val "$minfree" $LMK/minfree
-# HUUUGE shrinker(LMK) calling interval
-lock_val "2048" $LMK/cost
-
-# reclaim memory earlier
-lock_val "$efk" $VM/extra_free_kbytes
-# considering old platforms doesn't have this knob
-lock_val "30" $VM/watermark_scale_factor
-# it will be better if swappiness can be set above 100
-lock_val "100" $VM/swappiness
-# drop a little more inode cache
-lock_val "120" $VM/vfs_cache_pressure
+    # older adaptive_lmk may have false positive vmpressure issue
+    lock_val "0" $LMK/enable_adaptive_lmk
+    # almk will take no action if CACHED_APP_MAX_ADJ == 906
+    # lock_val "960" $LMK/adj_max_shift
+    # just unify param
+    lock_val "$minfree" $LMK/minfree
+    # HUUUGE shrinker(LMK) calling interval
+    lock_val "2048" $LMK/cost
+    # reclaim memory earlier
+    lock_val "$efk" $VM/extra_free_kbytes
+    # considering old platforms doesn't have this knob
+    lock_val "30" $VM/watermark_scale_factor
+    # it will be better if swappiness can be set above 100
+    lock_val "100" $VM/swappiness
+    # drop a little more inode cache
+    lock_val "120" $VM/vfs_cache_pressure
+fi
 
 # kernel reclaim threads run on more power-efficient cores
 change_task_nice "kswapd" "-20"
